@@ -1,13 +1,13 @@
 # DIY Hypnotism
 ## Hypnotic Visualizations
 
-This is a collection of hypnotic visualizations that have been legally curated from various open source repositories.
+This is a collection of hypnotic visualizations that have been legally curated.
+
+For use with DIY Hypnotism v2.0.0 and later.
 
 ## Licences
 
-* [clouds.qtz](visulizations/clouds.qtz) [MIT]
-* [spirultimate.qtz](visulizations/clouds.qtz) [Unknown]
-* [swirls.qtz](visulizations/clouds.qtz) [MIT]
+These files are licenced under MIT, see the individual html for specific licence.
 
 ## Pull Requests
 
