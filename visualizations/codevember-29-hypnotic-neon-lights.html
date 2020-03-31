@@ -1,0 +1,91 @@
+<!--
+Copyright (c) 2020 by Lea Rosema (https://codepen.io/terabaud/pen/xRPxwV)
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+-->
+<!DOCTYPE html>
+<html lang="en" >
+<head>
+  <meta charset="UTF-8">
+  <title>CodePen - #CodeVember 29 | Hypnotic neon lights</title>
+  <link rel="stylesheet" href="./codevember-29-hypnotic-neon-lights/style.css">
+</head>
+<body>
+<!-- partial:index.partial.html -->
+<canvas id=a></canvas>
+<script id=fragmentShader type="x-shader/x-fragment">
+precision mediump float;
+uniform float time;
+uniform float width;
+uniform float height;
+
+vec2 R(vec2 p,float a) {
+	return vec2( p.x*cos(a) + p.y*sin(a), 
+			    -p.x*sin(a) + p.y*cos(a));
+}
+
+
+void main() {
+	vec2 resolution = vec2(width, height);
+  float vc = time / 50.0;
+	float vt = 1000.0 + sin(sin(time/16.0)*2.0*3.1415927) * 7000.0;
+	float vr = time / 20.0;
+	vec2 c0 = (gl_FragCoord.xy / resolution) - vec2(0.5 + cos(time*0.3) * sin(time * 0.1) * 0.3, 0.5 + sin(time*0.3) * sin(time * 0.2) * 0.3);
+	vec2 c  = -R(c0, vr)*8.0; 
+	float val = 0.5 + sin((((vt - c.x - c.y) / 2.0)*(0.5+c.x)*(c.y+0.5) + vt+ c.x + c.y)/500.0);
+	gl_FragColor = vec4(vec3(val* (0.2+sin(sin(1.0+vc)* 10.0 *c.x*c.y)*0.8), val * (0.3+cos(2.0 + c.x*c.y*sin(vc)* 10.0 )*0.7), val * (0.3+cos(1.0 + c.x*c.y *sin(vc)* 10.0))*0.7), 1.0);
+}
+</script>
+	
+<script id=vertexShader type="x-shader/x-vertex">
+attribute vec3 pos;
+
+void main() {
+	gl_Position=vec4(pos, 1.0);
+}
+</script>
+<!-- partial -->
+  <script type="module">
+		import GLea from 'https://terabaud.github.io/hello-webgl/lib/glea/glea.mjs';
+
+		const frag = document.getElementById('fragmentShader').textContent;
+		const vert = document.getElementById('vertexShader').textContent;
+
+		let texture = null;
+
+		const glea = new GLea({
+		  shaders: [
+			GLea.fragmentShader(frag),
+			GLea.vertexShader(vert)
+		  ],
+		  buffers: {
+			'pos': GLea.buffer(2, [1, 1,  -1, 1,  1,-1,  -1,-1])
+		  }
+		}).create();
+
+		function loop(time) {
+		  const { gl } = glea;
+		  glea.clear();
+		  glea.uni('width', glea.width);
+		  glea.uni('height', glea.height);
+		  glea.uni('time', time * .001);
+		  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+		  requestAnimationFrame(loop);
+		}
+
+		function setup() {
+		  const { gl } = glea;
+		  window.addEventListener('resize', () => {
+			glea.resize();
+		  });
+		  loop(0);
+		}
+
+		setup();
+	</script>
+</body>
+</html>
