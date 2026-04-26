@@ -49,43 +49,123 @@ void main() {
 }
 </script>
 <!-- partial -->
-  <script type="module">
-		import GLea from 'https://terabaud.github.io/hello-webgl/lib/glea/glea.mjs';
+  <script>
+    const frag = document.getElementById('fragmentShader').textContent;
+    const vert = document.getElementById('vertexShader').textContent;
+    const canvas = document.getElementById('a');
+    const gl = canvas.getContext('webgl');
+    let program = null;
+    let widthLocation = null;
+    let heightLocation = null;
+    let timeLocation = null;
+    let animationRunning = false;
 
-		const frag = document.getElementById('fragmentShader').textContent;
-		const vert = document.getElementById('vertexShader').textContent;
+    function compileShader(type, source) {
+      const shader = gl.createShader(type);
+      gl.shaderSource(shader, source);
+      gl.compileShader(shader);
 
-		let texture = null;
+      if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+        throw new Error(gl.getShaderInfoLog(shader) || 'Failed to compile shader.');
+      }
 
-		const glea = new GLea({
-		  shaders: [
-			GLea.fragmentShader(frag),
-			GLea.vertexShader(vert)
-		  ],
-		  buffers: {
-			'pos': GLea.buffer(2, [1, 1,  -1, 1,  1,-1,  -1,-1])
-		  }
-		}).create();
+      return shader;
+    }
 
-		function loop(time) {
-		  const { gl } = glea;
-		  glea.clear();
-		  glea.uni('width', glea.width);
-		  glea.uni('height', glea.height);
-		  glea.uni('time', time * .001);
-		  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-		  requestAnimationFrame(loop);
-		}
+    function createProgram(vertexSource, fragmentSource) {
+      const vertexShader = compileShader(gl.VERTEX_SHADER, vertexSource);
+      const fragmentShader = compileShader(gl.FRAGMENT_SHADER, fragmentSource);
+      const nextProgram = gl.createProgram();
 
-		function setup() {
-		  const { gl } = glea;
-		  window.addEventListener('resize', () => {
-			glea.resize();
-		  });
-		  loop(0);
-		}
+      gl.attachShader(nextProgram, vertexShader);
+      gl.attachShader(nextProgram, fragmentShader);
+      gl.linkProgram(nextProgram);
 
-		setup();
-	</script>
+      if (!gl.getProgramParameter(nextProgram, gl.LINK_STATUS)) {
+        throw new Error(gl.getProgramInfoLog(nextProgram) || 'Failed to link program.');
+      }
+
+      gl.deleteShader(vertexShader);
+      gl.deleteShader(fragmentShader);
+
+      return nextProgram;
+    }
+
+    function resize() {
+      const scale = Math.max(1, window.devicePixelRatio || 1);
+      const width = Math.max(1, Math.round(window.innerWidth * scale));
+      const height = Math.max(1, Math.round(window.innerHeight * scale));
+
+      if (canvas.width !== width || canvas.height !== height) {
+        canvas.width = width;
+        canvas.height = height;
+      }
+
+      canvas.style.width = window.innerWidth + 'px';
+      canvas.style.height = window.innerHeight + 'px';
+      gl.viewport(0, 0, canvas.width, canvas.height);
+    }
+
+    function drawFrameAt(timeMs) {
+      resize();
+      gl.clearColor(0, 0, 0, 1);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+      gl.useProgram(program);
+      gl.uniform1f(widthLocation, canvas.width);
+      gl.uniform1f(heightLocation, canvas.height);
+      gl.uniform1f(timeLocation, timeMs * 0.001);
+      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    }
+
+    function loop(time) {
+      drawFrameAt(time);
+      if (animationRunning) {
+        requestAnimationFrame(loop);
+      }
+    }
+
+    function start() {
+      if (animationRunning) {
+        return;
+      }
+
+      animationRunning = true;
+      requestAnimationFrame(loop);
+    }
+
+    function setup() {
+      if (!gl) {
+        throw new Error('WebGL is not available.');
+      }
+
+      program = createProgram(vert, frag);
+      gl.useProgram(program);
+
+      const vertices = new Float32Array([1, 1, -1, 1, 1, -1, -1, -1]);
+      const buffer = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+      gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+
+      const positionLocation = gl.getAttribLocation(program, 'pos');
+      gl.enableVertexAttribArray(positionLocation);
+      gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
+
+      widthLocation = gl.getUniformLocation(program, 'width');
+      heightLocation = gl.getUniformLocation(program, 'height');
+      timeLocation = gl.getUniformLocation(program, 'time');
+
+      window.addEventListener('resize', resize);
+      window.addEventListener('diyHypnotismStart', resize);
+      resize();
+      start();
+    }
+
+    window.renderFrame = async function (timeMs) {
+      drawFrameAt(timeMs);
+    };
+
+    setup();
+  </script>
+  <script src="./support/renderframe-bridge.js"></script>
 </body>
 </html>

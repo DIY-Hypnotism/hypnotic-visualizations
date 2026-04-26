@@ -7,13 +7,16 @@ var pointerX = 0;
 var pointerY = 0;
 var tap = ('ontouchstart' in window || navigator.msMaxTouchPoints) ? 'touchstart' : 'mousedown';
 var colors = ['#FF1461', '#18FF92', '#5A87FF', '#FBF38C'];
+var viewportScale = Math.max(1, window.devicePixelRatio || 1);
+var autoClickTimer = null;
 
 function setCanvasSize() {
-  canvasEl.width = window.innerWidth * 2;
-  canvasEl.height = window.innerHeight * 2;
+  viewportScale = Math.max(1, window.devicePixelRatio || 1);
+  canvasEl.width = window.innerWidth * viewportScale;
+  canvasEl.height = window.innerHeight * viewportScale;
   canvasEl.style.width = window.innerWidth + 'px';
   canvasEl.style.height = window.innerHeight + 'px';
-  canvasEl.getContext('2d').scale(2, 2);
+  ctx.setTransform(viewportScale, 0, 0, viewportScale, 0, 0);
 }
 
 function updateCoords(e) {
@@ -107,7 +110,7 @@ function animateParticules(x, y) {
 var render = anime({
   duration: Infinity,
   update: function() {
-    ctx.clearRect(0, 0, canvasEl.width, canvasEl.height);
+    ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
   }
 });
 
@@ -118,18 +121,46 @@ document.addEventListener(tap, function(e) {
   animateParticules(pointerX, pointerY);
 }, false);
 
-var centerX = window.innerWidth / 2;
-var centerY = window.innerHeight / 2;
-
-function autoClick() {
-  if (window.human) return;
-  animateParticules(
-    anime.random(centerX-50, centerX+50), 
-    anime.random(centerY-50, centerY+50)
-  );
-  anime({duration: 200}).finished.then(autoClick);
+function centerX() {
+  return window.innerWidth / 2;
 }
 
-autoClick();
+function centerY() {
+  return window.innerHeight / 2;
+}
+
+function ensureAutoClickLoop() {
+  if (window.human || autoClickTimer) {
+    return;
+  }
+
+  autoClickTimer = anime({ duration: 200 });
+  autoClickTimer.finished.then(function() {
+    autoClickTimer = null;
+    autoClick();
+  });
+}
+
+function startAutoplay() {
+  window.human = false;
+  render.play();
+  setCanvasSize();
+  ensureAutoClickLoop();
+}
+
+function autoClick() {
+  if (window.human) {
+    autoClickTimer = null;
+    return;
+  }
+  animateParticules(
+    anime.random(centerX() - 50, centerX() + 50), 
+    anime.random(centerY() - 50, centerY() + 50)
+  );
+  ensureAutoClickLoop();
+}
+
 setCanvasSize();
 window.addEventListener('resize', setCanvasSize, false);
+window.addEventListener('diyHypnotismStart', startAutoplay, false);
+startAutoplay();

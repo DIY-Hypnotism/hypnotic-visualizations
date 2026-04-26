@@ -321,5 +321,13 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     <i></i>
   </div>
 </div>
+
+<script src="./export-render-hooks.js"></script>
+<script>
+window.renderFrame = async function (timeMs) {
+  window.__exportRenderHooks.freezeCssAnimationsAt(timeMs);
+};
+</script>
+<script src="./support/renderframe-bridge.js"></script>
 </body>
 </html>

@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>renderFrame Harness</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      font-family: "SF Mono", "Menlo", "Monaco", monospace;
+      background: #111;
+      color: #f5f5f5;
+    }
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      grid-template-rows: auto auto 1fr auto;
+      background: linear-gradient(180deg, #1a1a1a 0%, #0a0a0a 100%);
+    }
+    header {
+      padding: 16px 20px 8px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 16px;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.03);
+      backdrop-filter: blur(16px);
+    }
+    .title-group {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      min-width: 220px;
+    }
+    h1 {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .subtitle {
+      margin: 0;
+      font-size: 12px;
+      color: #bbb;
+      max-width: 720px;
+    }
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: flex-end;
+      margin-left: auto;
+    }
+    label {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      font-size: 11px;
+      color: #ddd;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    select,
+    button,
+    input[type="range"] {
+      font: inherit;
+    }
+    select,
+    button {
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.15);
+      background: rgba(255,255,255,0.06);
+      color: #f5f5f5;
+      min-height: 40px;
+    }
+    button {
+      cursor: pointer;
+      transition: background 140ms ease, transform 140ms ease;
+    }
+    button:hover:not(:disabled) {
+      background: rgba(255,255,255,0.12);
+      transform: translateY(-1px);
+    }
+    button:disabled {
+      cursor: not-allowed;
+      opacity: 0.5;
+    }
+    .transport {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      padding: 8px 20px 0;
+      flex-wrap: wrap;
+    }
+    .transport button {
+      min-width: 88px;
+    }
+    .slider-wrap {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex: 1;
+      min-width: 220px;
+    }
+    input[type="range"] {
+      flex: 1;
+      accent-color: #7dd3fc;
+    }
+    .viewer {
+      position: relative;
+      min-height: 0;
+      background: #000;
+    }
+    .viewer.compare-natural {
+      background: radial-gradient(circle at top, rgba(125,211,252,0.08), transparent 50%), #000;
+    }
+    iframe {
+      width: 100%;
+      height: 100%;
+      border: 0;
+      display: block;
+      background: #000;
+    }
+    .overlay {
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      max-width: min(480px, calc(100% - 32px));
+      padding: 14px 16px;
+      border-radius: 14px;
+      background: rgba(0,0,0,0.72);
+      border: 1px solid rgba(255,255,255,0.1);
+      color: #d7f9ff;
+      font-size: 12px;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      pointer-events: none;
+      box-shadow: 0 12px 24px rgba(0,0,0,0.28);
+    }
+    footer {
+      padding: 10px 20px 16px;
+      font-size: 13px;
+      color: #bbb;
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .viewer {
+      min-height: 60vh;
+    }
+    @media (max-width: 720px) {
+      body {
+        grid-template-rows: auto auto 1fr auto;
+      }
+      header {
+        padding-inline: 14px;
+      }
+      .transport,
+      footer {
+        padding-inline: 14px;
+      }
+      .overlay {
+        font-size: 11px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="title-group">
+      <h1>renderFrame Harness</h1>
+      <p class="subtitle">Compare natural browser playback with deterministic <code>renderFrame()</code> rendering on the same local visualization files.</p>
+    </div>
+    <div class="controls">
+      <label>
+        Visualization
+        <select id="fileSelect"></select>
+      </label>
+      <label>
+        Mode
+        <select id="modeSelect">
+          <option value="deterministic" selected>renderFrame</option>
+          <option value="natural">Natural browser</option>
+        </select>
+      </label>
+      <label>
+        Direction
+        <select id="directionSelect">
+          <option value="1" selected>Forward</option>
+          <option value="-1">Backward</option>
+        </select>
+      </label>
+      <label>
+        Speed
+        <select id="speedSelect">
+          <option value="0.25">0.25x</option>
+          <option value="0.5">0.5x</option>
+          <option value="1" selected>1x</option>
+          <option value="2">2x</option>
+          <option value="4">4x</option>
+        </select>
+      </label>
+      <button id="reloadBtn" type="button">Reload</button>
+    </div>
+  </header>
+
+  <div class="transport">
+    <button id="playPauseBtn" type="button">Play</button>
+    <button id="stepBackBtn" type="button">Step Back</button>
+    <button id="stepForwardBtn" type="button">Step Forward</button>
+    <div class="slider-wrap">
+      <input id="timeSlider" type="range" min="0" max="10000" value="0">
+      <span id="timeLabel">0.000s</span>
+    </div>
+  </div>
+
+  <div class="viewer">
+    <iframe id="viewer" allow="autoplay"></iframe>
+    <div class="overlay" id="overlay">Loading…</div>
+  </div>
+
+  <footer>
+    <span id="renderFrameStatus">renderFrame: unknown</span>
+    <span id="driverStatus">driver: unknown</span>
+    <span id="rafStatus">raf flush: n/a</span>
+    <span id="sizeStatus">size: n/a</span>
+    <span id="durationStatus">duration: 120.000s</span>
+  </footer>
+
+  <script>
+    const VIS_FILES = [
+      '../hypnotic-animation.html',
+      '../cloudy-spiral-css-animation.html',
+      '../hyperspace.html',
+      '../fiery-spiral.html',
+      '../hypnoswirl.html',
+      '../3d-rainbow-hypnosis-dance.html',
+      '../codevember-29-hypnotic-neon-lights.html',
+      '../dot-tunnel.html',
+      '../svg-line-drawing-animation.html',
+      '../anime-js-fireworks-canvas-demo.html',
+      '../black.html'
+    ];
+
+    const fileSelect = document.getElementById('fileSelect');
+    const viewer = document.getElementById('viewer');
+    const overlay = document.getElementById('overlay');
+    const playPauseBtn = document.getElementById('playPauseBtn');
+    const reloadBtn = document.getElementById('reloadBtn');
+    const directionSelect = document.getElementById('directionSelect');
+    const speedSelect = document.getElementById('speedSelect');
+    const modeSelect = document.getElementById('modeSelect');
+    const timeSlider = document.getElementById('timeSlider');
+    const timeLabel = document.getElementById('timeLabel');
+    const renderFrameStatus = document.getElementById('renderFrameStatus');
+    const driverStatus = document.getElementById('driverStatus');
+    const rafStatus = document.getElementById('rafStatus');
+    const sizeStatus = document.getElementById('sizeStatus');
+    const durationStatus = document.getElementById('durationStatus');
+    const stepBackBtn = document.getElementById('stepBackBtn');
+    const stepForwardBtn = document.getElementById('stepForwardBtn');
+    const viewerContainer = document.querySelector('.viewer');
+    const BRIDGE_MESSAGE_TIMEOUT_MS = 5000;
+    const bridgePendingRequests = new Map();
+    let nextBridgeRequestId = 1;
+
+    const state = {
+      playing: false,
+      direction: 1,
+      speed: 1,
+      currentTimeMs: 0,
+      durationMs: 120000,
+      frameRate: 60,
+      frameIndex: 0,
+      rafId: null,
+      lastTickMs: 0,
+      hasRenderFrame: false,
+      playbackMode: 'deterministic',
+      lastRafFlushPasses: 0,
+      lastRafFlushCallbacks: 0,
+      lastRafQueued: 0,
+      renderDriver: 'unknown',
+      isScrubbing: false,
+      scrubTimeMs: null,
+      scrubRenderRequestId: null,
+      isLoading: false,
+      pendingPlayAfterLoad: false,
+    };
+
+    window.addEventListener('message', (event) => {
+      const data = event.data;
+      if (!data || data.__codexRenderframeBridge !== true) {
+        return;
+      }
+
+      const pending = bridgePendingRequests.get(data.id);
+      if (!pending) {
+        return;
+      }
+
+      bridgePendingRequests.delete(data.id);
+
+      if (data.ok) {
+        pending.resolve(data.payload);
+      } else {
+        pending.reject(new Error(data.payload || 'Bridge request failed'));
+      }
+    });
+
+    for (const file of VIS_FILES) {
+      const option = document.createElement('option');
+      option.value = file;
+      option.textContent = file.replace(/^\.\.\//, '');
+      fileSelect.appendChild(option);
+    }
+
+    const params = new URLSearchParams(location.search);
+    const queryFile = params.get('file');
+    const normalizedQueryFile = queryFile && queryFile.startsWith('../') ? queryFile : (queryFile ? `../${queryFile}` : null);
+    if (normalizedQueryFile && VIS_FILES.includes(normalizedQueryFile)) {
+      fileSelect.value = normalizedQueryFile;
+    }
+    if (params.get('mode') === 'natural') {
+      state.playbackMode = 'natural';
+      modeSelect.value = 'natural';
+    }
+    state.direction = Number(directionSelect.value);
+    state.speed = Number(speedSelect.value);
+
+    function formatTime(ms) {
+      return `${(ms / 1000).toFixed(3)}s`;
+    }
+
+    function clampTime(ms) {
+      return Math.max(0, Math.min(state.durationMs, ms));
+    }
+
+    function isDeterministicMode() {
+      return state.playbackMode === 'deterministic';
+    }
+
+    function detectRenderDriver(snapshot) {
+      const animationCount = snapshot?.animationCount || 0;
+      const canvasCount = snapshot?.canvasCount || 0;
+      const hasRenderFrame = Boolean(snapshot?.hasRenderFrame);
+
+      if (!hasRenderFrame) {
+        if (animationCount > 0) return 'css-animation';
+        if (canvasCount > 0) return 'canvas/custom';
+        return 'unknown';
+      }
+
+      if (state.lastRafFlushCallbacks > 0) {
+        return animationCount > 0 ? 'js/raf + css-animation' : 'js/raf';
+      }
+
+      if (animationCount > 0 && canvasCount > 0) {
+        return 'css-animation + canvas';
+      }
+      if (animationCount > 0) return 'css-animation';
+      if (canvasCount > 0) return 'canvas/custom';
+      return 'custom';
+    }
+
+    function sleep(ms) {
+      return new Promise((resolve) => {
+        setTimeout(resolve, ms);
+      });
+    }
+
+    function getViewerWindow() {
+      const win = viewer.contentWindow;
+      if (!win) {
+        throw new Error('Visualization iframe did not expose a window');
+      }
+      return win;
+    }
+
+    function bridgeRequest(type, payload = {}) {
+      const targetWindow = getViewerWindow();
+      const requestId = nextBridgeRequestId++;
+
+      return new Promise((resolve, reject) => {
+        const timeoutId = setTimeout(() => {
+          bridgePendingRequests.delete(requestId);
+          reject(new Error(`Bridge request timed out: ${type}`));
+        }, BRIDGE_MESSAGE_TIMEOUT_MS);
+
+        bridgePendingRequests.set(requestId, {
+          resolve: (value) => {
+            clearTimeout(timeoutId);
+            resolve(value);
+          },
+          reject: (error) => {
+            clearTimeout(timeoutId);
+            reject(error);
+          }
+        });
+
+        targetWindow.postMessage({
+          __codexRenderframeHarness: true,
+          id: requestId,
+          type,
+          ...payload
+        }, '*');
+      });
+    }
+
+    async function waitForBridgeReady() {
+      const attempts = 50;
+      for (let attempt = 0; attempt < attempts; attempt += 1) {
+        try {
+          return await bridgeRequest('ping');
+        } catch (error) {
+          if (attempt === attempts - 1) {
+            throw error;
+          }
+          await sleep(100);
+        }
+      }
+      throw new Error('Visualization bridge did not become ready');
+    }
+
+    function updateUi() {
+      const displayTimeMs = state.isScrubbing && state.scrubTimeMs != null
+        ? state.scrubTimeMs
+        : state.currentTimeMs;
+      timeLabel.textContent = formatTime(displayTimeMs);
+      if (!state.isScrubbing) {
+        timeSlider.value = String(Math.round((displayTimeMs / state.durationMs) * 10000));
+      }
+      playPauseBtn.textContent = state.playing ? 'Pause' : 'Play';
+      playPauseBtn.classList.toggle('is-playing', state.playing);
+      playPauseBtn.setAttribute('aria-pressed', state.playing ? 'true' : 'false');
+      playPauseBtn.title = state.playing ? 'Playback is running' : 'Playback is paused';
+      renderFrameStatus.textContent = `renderFrame: ${state.hasRenderFrame ? 'yes' : 'no'} (${state.playbackMode})`;
+      driverStatus.textContent = `driver: ${state.renderDriver}`;
+      rafStatus.textContent = isDeterministicMode()
+        ? `raf flush: ${state.lastRafFlushCallbacks} callbacks in ${state.lastRafFlushPasses} passes, ${state.lastRafQueued} queued`
+        : 'raf flush: natural mode';
+      durationStatus.textContent = `duration: ${formatTime(state.durationMs)}`;
+      const deterministic = isDeterministicMode();
+      playPauseBtn.disabled = !deterministic;
+      stepBackBtn.disabled = !deterministic;
+      stepForwardBtn.disabled = !deterministic;
+      directionSelect.disabled = !deterministic;
+      speedSelect.disabled = !deterministic;
+      timeSlider.disabled = !deterministic;
+      viewerContainer.classList.toggle('compare-natural', !deterministic);
+      if (state.isLoading && deterministic) {
+        playPauseBtn.title = 'Loading visualization… playback will start when ready';
+      }
+    }
+
+    function syncQueryString() {
+      const url = new URL(location.href);
+      url.searchParams.set('file', fileSelect.value.replace(/^\.\.\//, ''));
+      url.searchParams.set('mode', state.playbackMode);
+      history.replaceState(null, '', url);
+    }
+
+    function sliderValueToTime() {
+      return (Number(timeSlider.value) / 10000) * state.durationMs;
+    }
+
+    function clearScrubState() {
+      state.isScrubbing = false;
+      state.scrubTimeMs = null;
+      if (state.scrubRenderRequestId) {
+        cancelAnimationFrame(state.scrubRenderRequestId);
+        state.scrubRenderRequestId = null;
+      }
+    }
+
+    async function finishScrub() {
+      if (!state.isScrubbing) {
+        return;
+      }
+
+      const targetTimeMs = state.scrubTimeMs != null ? state.scrubTimeMs : sliderValueToTime();
+      clearScrubState();
+      await renderAt(targetTimeMs);
+      updateUi();
+    }
+
+    function scheduleScrubRender() {
+      if (state.scrubRenderRequestId) {
+        return;
+      }
+
+      state.scrubRenderRequestId = requestAnimationFrame(() => {
+        const targetTimeMs = state.scrubTimeMs;
+        state.scrubRenderRequestId = null;
+
+        Promise.resolve(renderAt(targetTimeMs))
+          .catch((error) => {
+            overlay.textContent = `Scrub failed:\n${error?.stack || error}`;
+            console.error(error);
+          })
+          .finally(() => {
+            if (state.isScrubbing && state.scrubTimeMs !== targetTimeMs) {
+              scheduleScrubRender();
+            }
+          });
+      });
+    }
+
+    function getFrameContext(timeMs) {
+      const width = viewer.clientWidth || 1280;
+      const height = viewer.clientHeight || 720;
+      return {
+        frameIndex: Math.round((timeMs / 1000) * state.frameRate),
+        frameRate: state.frameRate,
+        durationMs: state.durationMs,
+        width,
+        height,
+        isExport: true,
+      };
+    }
+
+    async function loadIframeSource(file) {
+      await new Promise((resolve, reject) => {
+        viewer.onload = () => {
+          viewer.onload = null;
+          viewer.onerror = null;
+          resolve();
+        };
+        viewer.onerror = () => {
+          viewer.onload = null;
+          viewer.onerror = null;
+          reject(new Error(`Failed to load ${file}`));
+        };
+        viewer.removeAttribute('srcdoc');
+        viewer.src = file;
+      });
+    }
+
+    function collectVisualizationDebugInfo(snapshot) {
+      return snapshot?.debugInfo || null;
+    }
+
+    function formatVisualizationDebugInfo(debugInfo) {
+      if (!debugInfo) return [];
+      if (debugInfo.error) return [`debug error: ${debugInfo.error}`];
+
+      const lines = [
+        `debug mode: ${debugInfo.mode ?? '-'}`,
+        `debug time: ${typeof debugInfo.timeMs === 'number' ? formatTime(debugInfo.timeMs) : '-'}`,
+        `camera z: ${debugInfo.cameraZ ?? '-'}`,
+        `closest/farest: ${debugInfo.closestZ ?? '-'} / ${debugInfo.farestZ ?? '-'}`,
+        `expected closest: ${debugInfo.expectedClosestZ ?? '-'}`,
+        `rows: ${debugInfo.rowCount ?? '-'}`
+      ];
+
+      if (Array.isArray(debugInfo.sampleRows) && debugInfo.sampleRows.length > 0) {
+        lines.push(`sample rows: ${debugInfo.sampleRows.map((row) => {
+          const z = row.z ?? '?';
+          const rotation = row.rotation ?? '?';
+          const expectedRotation = row.expectedRotation ?? '?';
+          const rotationOffset = row.rotationOffset ?? '?';
+          return `${z}:${rotation}/${expectedRotation}(${rotationOffset})`;
+        }).join(' | ')}`);
+      }
+
+      return lines;
+    }
+
+    async function renderAt(timeMs) {
+      state.currentTimeMs = clampTime(timeMs);
+      state.frameIndex = Math.round((state.currentTimeMs / 1000) * state.frameRate);
+      state.lastRafFlushCallbacks = 0;
+      state.lastRafFlushPasses = 0;
+      state.lastRafQueued = 0;
+
+      const frameContext = getFrameContext(state.currentTimeMs);
+      let snapshot = await bridgeRequest('get-state');
+
+      if (isDeterministicMode() && snapshot.hasRenderFrame) {
+        state.hasRenderFrame = true;
+        try {
+          snapshot = await bridgeRequest('render-frame', {
+            timeMs: state.currentTimeMs,
+            context: frameContext
+          });
+          const flushResult = await bridgeRequest('flush-raf', {
+            timestamp: state.currentTimeMs
+          });
+          state.lastRafFlushPasses = flushResult.passes;
+          state.lastRafFlushCallbacks = flushResult.callbacks;
+          state.lastRafQueued = flushResult.remaining;
+          snapshot = flushResult.state || snapshot;
+          state.renderDriver = detectRenderDriver(snapshot);
+          const debugLines = formatVisualizationDebugInfo(collectVisualizationDebugInfo(snapshot));
+          overlay.textContent = [
+            `renderFrame active`,
+            `file: ${fileSelect.value.replace(/^\.\.\//, '')}`,
+            `mode: deterministic renderFrame`,
+            `time: ${formatTime(state.currentTimeMs)}`,
+            `driver: ${state.renderDriver}`,
+            `raf flush: ${state.lastRafFlushCallbacks} callbacks / ${state.lastRafFlushPasses} passes / ${state.lastRafQueued} remaining`,
+            `direction: ${state.direction === 1 ? 'forward' : 'backward'}`,
+            `speed: ${state.speed}x`,
+            ...debugLines
+          ].join('\n');
+        } catch (error) {
+          state.renderDriver = 'error';
+          overlay.textContent = `renderFrame threw an error:\n${error?.stack || error}`;
+        }
+      } else if (isDeterministicMode()) {
+        state.hasRenderFrame = false;
+        state.renderDriver = detectRenderDriver(snapshot);
+        overlay.textContent = [
+          `No renderFrame() found`,
+          `file: ${fileSelect.value.replace(/^\.\.\//, '')}`,
+          `mode: deterministic renderFrame`,
+          `driver: ${state.renderDriver}`,
+          `This page is showing the loaded visualization,`,
+          `but deterministic control is unavailable.`
+        ].join('\n');
+      } else {
+        state.hasRenderFrame = Boolean(snapshot?.hasRenderFrame);
+        state.renderDriver = detectRenderDriver(snapshot);
+        const debugLines = formatVisualizationDebugInfo(collectVisualizationDebugInfo(snapshot));
+        overlay.textContent = [
+          `Natural browser playback`,
+          `file: ${fileSelect.value.replace(/^\.\.\//, '')}`,
+          `mode: natural browser`,
+          `renderFrame available: ${state.hasRenderFrame ? 'yes' : 'no'}`,
+          `driver: ${state.renderDriver}`,
+          `Use Reload to compare this against deterministic playback.`,
+          ...debugLines
+        ].join('\n');
+      }
+
+      sizeStatus.textContent = `size: ${snapshot?.width || frameContext.width}×${snapshot?.height || frameContext.height}`;
+      updateUi();
+    }
+
+    function stopPlayback() {
+      state.playing = false;
+      state.lastTickMs = 0;
+      if (state.rafId) cancelAnimationFrame(state.rafId);
+      state.rafId = null;
+      clearScrubState();
+      updateUi();
+    }
+
+    function tick(now) {
+      if (!state.playing) return;
+      if (!state.lastTickMs) {
+        state.lastTickMs = now;
+        state.rafId = requestAnimationFrame(tick);
+        return;
+      }
+      const elapsedMs = now - state.lastTickMs;
+      state.lastTickMs = now;
+      const delta = elapsedMs * state.speed * state.direction;
+      let next = state.currentTimeMs + delta;
+
+      if (state.direction > 0 && next >= state.durationMs) {
+        next = state.durationMs;
+        stopPlayback();
+      } else if (state.direction < 0 && next <= 0) {
+        next = 0;
+        stopPlayback();
+      }
+
+      Promise.resolve(renderAt(next))
+        .catch((error) => {
+          stopPlayback();
+          overlay.textContent = `Playback failed:\n${error?.stack || error}`;
+          console.error(error);
+        })
+        .finally(() => {
+          if (state.playing) state.rafId = requestAnimationFrame(tick);
+        });
+    }
+
+    function startPlayback() {
+      if (state.playing) return;
+      if (state.isLoading) {
+        state.pendingPlayAfterLoad = true;
+        playPauseBtn.classList.add('is-playing');
+        playPauseBtn.textContent = 'Starting…';
+        playPauseBtn.title = 'Loading visualization… playback will start when ready';
+        return;
+      }
+      clearScrubState();
+      state.pendingPlayAfterLoad = false;
+      state.playing = true;
+      state.lastTickMs = 0;
+      updateUi();
+      state.rafId = requestAnimationFrame(tick);
+    }
+
+    function togglePlayback() {
+      if (!isDeterministicMode()) {
+        return;
+      }
+
+      if (state.playing) {
+        stopPlayback();
+      } else {
+        startPlayback();
+      }
+    }
+
+    async function loadVisualization() {
+      stopPlayback();
+      clearScrubState();
+      syncQueryString();
+      overlay.textContent = 'Loading…';
+      state.isLoading = true;
+      state.pendingPlayAfterLoad = false;
+      state.currentTimeMs = 0;
+      state.hasRenderFrame = false;
+      state.lastRafFlushCallbacks = 0;
+      state.lastRafFlushPasses = 0;
+      state.lastRafQueued = 0;
+      state.renderDriver = 'unknown';
+      state.direction = Number(directionSelect.value);
+      state.speed = Number(speedSelect.value);
+      updateUi();
+
+      const file = fileSelect.value;
+
+      if (isDeterministicMode()) {
+        try {
+          await loadIframeSource(file);
+          await waitForBridgeReady();
+          await bridgeRequest('set-mode', { mode: 'deterministic' });
+
+          await renderAt(0);
+          state.isLoading = false;
+          updateUi();
+          if (state.pendingPlayAfterLoad) {
+            startPlayback();
+          }
+          return;
+        } catch (error) {
+          state.isLoading = false;
+          updateUi();
+          throw error;
+        }
+      }
+
+      try {
+        await loadIframeSource(file);
+        await waitForBridgeReady();
+        const snapshot = await bridgeRequest('set-mode', { mode: 'natural' });
+
+        state.isLoading = false;
+        state.hasRenderFrame = Boolean(snapshot?.hasRenderFrame);
+        state.renderDriver = detectRenderDriver(snapshot);
+        sizeStatus.textContent = `size: ${snapshot?.width || viewer.clientWidth || 1280}×${snapshot?.height || viewer.clientHeight || 720}`;
+        overlay.textContent = [
+          `Natural browser playback`,
+          `file: ${file.replace(/^\.\.\//, '')}`,
+          `mode: natural browser`,
+          `renderFrame available: ${state.hasRenderFrame ? 'yes' : 'no'}`,
+          `driver: ${state.renderDriver}`,
+          `Use Reload to compare this against deterministic playback.`,
+          ...formatVisualizationDebugInfo(collectVisualizationDebugInfo(snapshot))
+        ].join('\n');
+        updateUi();
+      } catch (error) {
+        state.isLoading = false;
+        updateUi();
+        throw error;
+      }
+    }
+
+    fileSelect.addEventListener('change', loadVisualization);
+    reloadBtn.addEventListener('click', loadVisualization);
+    playPauseBtn.addEventListener('pointerdown', (event) => {
+      if (event.button !== 0) {
+        return;
+      }
+      event.preventDefault();
+      togglePlayback();
+    });
+    playPauseBtn.addEventListener('keydown', (event) => {
+      if (event.key !== ' ' && event.key !== 'Enter') {
+        return;
+      }
+      event.preventDefault();
+      togglePlayback();
+    });
+
+    modeSelect.addEventListener('change', () => {
+      state.playbackMode = modeSelect.value;
+      loadVisualization().catch((error) => {
+        overlay.textContent = `Harness failed to switch modes:\n${error?.stack || error}`;
+        console.error(error);
+      });
+    });
+
+    directionSelect.addEventListener('change', () => {
+      state.direction = Number(directionSelect.value);
+      updateUi();
+    });
+
+    speedSelect.addEventListener('change', () => {
+      state.speed = Number(speedSelect.value);
+      updateUi();
+    });
+
+    timeSlider.addEventListener('input', () => {
+      if (!isDeterministicMode()) {
+        return;
+      }
+      state.scrubTimeMs = sliderValueToTime();
+      state.isScrubbing = true;
+      timeLabel.textContent = formatTime(state.scrubTimeMs);
+      scheduleScrubRender();
+    });
+
+    timeSlider.addEventListener('change', () => {
+      if (!isDeterministicMode()) {
+        return;
+      }
+      finishScrub().catch((error) => {
+        overlay.textContent = `Scrub failed:\n${error?.stack || error}`;
+        console.error(error);
+      });
+    });
+
+    stepBackBtn.addEventListener('click', async () => {
+      stopPlayback();
+      await renderAt(state.currentTimeMs - (1000 / state.frameRate));
+    });
+
+    stepForwardBtn.addEventListener('click', async () => {
+      stopPlayback();
+      await renderAt(state.currentTimeMs + (1000 / state.frameRate));
+    });
+
+    loadVisualization().catch((error) => {
+      overlay.textContent = `Harness failed to load:\n${error?.stack || error}`;
+      console.error(error);
+    });
+  </script>
+</body>
+</html>

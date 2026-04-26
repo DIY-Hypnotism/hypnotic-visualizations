@@ -246,5 +246,13 @@ background-color: #400000;
 <div id="circle11" class="c11-grow"></div>
 <div id="circle12" class="c12-grow"></div>
 <!-- partial -->
+
+<script src="./export-render-hooks.js"></script>
+<script>
+window.renderFrame = async function (timeMs) {
+  window.__exportRenderHooks.freezeCssAnimationsAt(timeMs);
+};
+</script>
+<script src="./support/renderframe-bridge.js"></script>
 </body>
 </html>

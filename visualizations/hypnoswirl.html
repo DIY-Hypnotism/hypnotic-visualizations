@@ -21,5 +21,13 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 <div class="container"><div class="box"><div class="box"><div class="box"><div class="box"><div class="box"><div class="box"><div class="box"><div class="box"><div class="box"><div class="box"><div class="box"></div></div></div></div></div></div></div></div></div></div></div></div>
 <!-- partial -->
   <script  src="./hypnoswirl/script.js"></script>
+
+<script src="./export-render-hooks.js"></script>
+<script>
+window.renderFrame = async function (timeMs) {
+  window.__exportRenderHooks.freezeCssAnimationsAt(timeMs);
+};
+</script>
+<script src="./support/renderframe-bridge.js"></script>
 </body>
 </html>
