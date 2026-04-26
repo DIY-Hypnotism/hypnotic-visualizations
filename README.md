@@ -16,6 +16,17 @@ For more information about the app, see:
 * Website: https://www.diyhypnotism.com/
 * App Store: https://apps.apple.com/gb/app/diy-hypnotism/id1331447267?mt=12
 
+## Support Directory
+
+This repository also includes a local `support` directory for helper files used by v3-ready visualisations.
+
+Notable files include:
+
+* `support/renderframe-bridge.js` for deterministic `renderFrame()` integration
+* `support/renderframe-harness.html` for testing and comparing natural playback with deterministic rendering
+
+Visualisations that opt into the v3 export path may depend on files from this `support` directory.
+
 ## v3 Update
 
 DIY Hypnotism v3 adds an optional deterministic export path for visualisations.
@@ -96,6 +107,8 @@ For v3-ready visualisations, test both paths:
 * normal browser playback
 * in-app preview
 * deterministic export via `renderFrame()`
+
+The local `support/renderframe-harness.html` page can be used to compare natural browser playback with deterministic `renderFrame()` rendering.
 
 ## Licences
 
